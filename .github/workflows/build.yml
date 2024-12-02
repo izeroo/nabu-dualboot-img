@@ -4,29 +4,32 @@ on:
   push:
   workflow_dispatch:
 
+# Indicate that we are running in CI
+env:
+  WM_CI_BUILD: true
+
 jobs:
-  build-uefi-secureboot:
-    runs-on: ubuntu-latest
+  build-uefi:
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: map220v/MU-sm8150pkg
-          ref: nabu-secureboot
+          repository: Project-Aloha/mu_aloha_platforms
+          ref: main
           path: MU
-      - name: Build UEFI (SB)
+      - name: Build UEFI
         run: |
           cd MU
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git submodule update --init MU_BASECORE
-          sed -i 's/Zeex/wyrover/g' MU_BASECORE/.gitmodules
           git submodule update --init --recursive
           sed -i '/"Kernel"/s/Conv/Reserv/' Platforms/SurfaceDuo1Pkg/Device/xiaomi-nabu/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c
-          docker build -t mu:v1 .
-          docker run -v $(pwd):/build/ mu:v1 ./build_uefi.py -d xiaomi-nabu
-          find . -type f -name 'SM8150_EFI.fd' -exec cp '{}' ../SM8150_EFI_SB.fd ';'
-          find . -type f -name 'xiaomi-nabu.img' -exec cp '{}' ../uefi_secureboot.img ';'
+          bash scripts/ci_setup.sh && ./build_uefi.py -d xiaomi-nabu
+          find Build/*/ci_artifacts/ -type f -name 'SM8150_EFI_SB.fd' -exec cp '{}' ../SM8150_EFI_SB.fd ';'
+          find Build/*/ci_artifacts/ -type f -name 'xiaomi-nabu_SB.img' -exec cp '{}' ../xiaomi-nabu_SB.img ';'
+          find Build/*/ci_artifacts/ -type f -name 'SM8150_EFI_NOSB.fd' -exec cp '{}' ../SM8150_EFI_NOSB.fd ';'
+          find Build/*/ci_artifacts/ -type f -name 'xiaomi-nabu_NOSB.img' -exec cp '{}' ../xiaomi-nabu_NOSB.img ';'
       - uses: actions/upload-artifact@v4
         with:
           name: SM8150_EFI_SB.fd
@@ -34,33 +37,9 @@ jobs:
             SM8150_EFI_SB.fd
       - uses: actions/upload-artifact@v4
         with:
-          name: uefi_secureboot.img
+          name: xiaomi-nabu_SB.img
           path: |
-            uefi_secureboot.img
-
-  build-uefi-no-secureboot:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: map220v/MU-sm8150pkg
-          ref: nabu-secureboot
-          path: MU
-      - name: Build UEFI (NOSB)
-        run: |
-          cd MU
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git submodule update --init MU_BASECORE
-          sed -i 's/Zeex/wyrover/g' MU_BASECORE/.gitmodules
-          git submodule update --init --recursive
-          git am ../0001-Revert-Enable-Secure-Boot.patch
-          sed -i '/"Kernel"/s/Conv/Reserv/' Platforms/SurfaceDuo1Pkg/Device/xiaomi-nabu/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c
-          docker build -t mu:v1 .
-          docker run -v $(pwd):/build/ mu:v1 ./build_uefi.py -d xiaomi-nabu
-          find . -type f -name 'SM8150_EFI.fd' -exec cp '{}' ../SM8150_EFI_NOSB.fd ';'
-          find . -type f -name 'xiaomi-nabu.img' -exec cp '{}' ../uefi_no_secureboot.img ';'
+            xiaomi-nabu_SB.img
       - uses: actions/upload-artifact@v4
         with:
           name: SM8150_EFI_NOSB.fd
@@ -68,11 +47,11 @@ jobs:
             SM8150_EFI_NOSB.fd
       - uses: actions/upload-artifact@v4
         with:
-          name: uefi_no_secureboot.img
+          name: xiaomi-nabu_NOSB.img
           path: |
-            uefi_no_secureboot.img
+            xiaomi-nabu_NOSB.img
   build-installer:
-    needs: [build-uefi-secureboot,build-uefi-no-secureboot]
+    needs: [build-uefi]
     strategy:
       matrix:
         uefi-type: [SB, NOSB]
