@@ -9,7 +9,27 @@ env:
   WM_CI_BUILD: true
 
 jobs:
+  prepare-sb-keys:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+      - run: |
+          python -m pip install --upgrade pip
+          pip install edk2-pytool-library==0.22.3
+          pip install edk2-pytool-extensions==0.28.0
+          cd secureboot
+          python secure_boot_default_keys.py --keystore keystore.toml -o Artifacts
+          python generate_dsc.py Artifacts/Aarch64/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SecureBootKeys.dsc.inc
+          path: secureboot/Artifacts/Aarch64/SecureBootKeys.dsc.inc
+
   build-uefi:
+    needs: [prepare-sb-keys]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -18,13 +38,16 @@ jobs:
           repository: Project-Aloha/mu_aloha_platforms
           ref: main
           path: MU
+      - uses: actions/download-artifact@v4
+        with:
+          name: SecureBootKeys.dsc.inc
       - name: Build UEFI
         run: |
           cd MU
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git submodule update --init --recursive
-          git am ../sb-keys.patch
+          cp ../SecureBootKeys.dsc.inc Platforms/AndromedaPkg/SecureBootKeys.dsc.inc
           sed -i '/"Kernel"/s/Conv/Reserv/' Platforms/SurfaceDuo1Pkg/Device/xiaomi-nabu/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c
           bash scripts/ci_setup.sh && ./build_uefi.py -d xiaomi-nabu
           find Build/*/ci_artifacts/ -type f -name 'SM8150_EFI_SB.fd' -exec cp '{}' ../SM8150_EFI_SB.fd ';'
