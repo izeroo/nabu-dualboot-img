@@ -34,7 +34,24 @@ In the magnetic cover option, this selection logic checks the status of the magn
 
 In the boot manager option, the selection logic reads a specific memory address and checks if a certain pattern is present at that address. If the pattern is not found (as happens on every cold boot), UEFI is launched. When the `Reboot to Android` app is launched, that pattern is written to the memory address, and a warm reboot is triggered. On the next boot, the selection logic will find the matching pattern and boot the Android kernel.
 
+## How to add your own Secure Boot keys as trusted in UEFI
+
+1. Generate Secure Boot certificates:
+```bash
+openssl req -new -x509 -newkey rsa:2048 -keyout Db.key \
+  -out Db.crt -nodes -days 3650 \
+  -subj "/O=EFI Binaries/CN=yourname/"
+
+openssl x509 -in Db.crt -out Db.der -outform DER
+```
+2. Fork this repo and replace `user.der` with your `Db.der`.
+3. Sign EFI binaries (rEFInd, grub, Linux kernels...) with your key:
+```bash
+sbsign --key Db.key --cert Db.crt --output file.signed.efi file.efi
+```
+
 ## Credits
+
 [DualBootKernelPatcher](https://github.com/Project-Aloha/DualBootKernelPatcher)
 
 [UEFI](https://github.com/Project-Aloha/mu_aloha_platforms)
