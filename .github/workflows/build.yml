@@ -24,7 +24,7 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git submodule update --init --recursive
-          sed -i '/"Kernel"/s/Conv/Reserv/' Platforms/SurfaceDuo1Pkg/Device/xiaomi-nabu/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c
+          cp ../PlatformMemoryMapLib.c Platforms/SurfaceDuo1Pkg/Device/xiaomi-nabu/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c
           bash scripts/ci_setup.sh && ./build_uefi.py -d xiaomi-nabu
           find Build/*/ci_artifacts/ -type f -name 'SM8150_EFI_SB.fd' -exec cp '{}' ../SM8150_EFI_SB.fd ';'
           find Build/*/ci_artifacts/ -type f -name 'xiaomi-nabu_SB.img' -exec cp '{}' ../xiaomi-nabu_SB.img ';'
